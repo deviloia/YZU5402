@@ -8,16 +8,21 @@ import com.example.yzuwifilocationresearch.model.BuildingBoundary
  */
 object BuildingLookup {
 
-    // TODO：替換成實際測量的角落座標，目前是佔位資料，不代表真實範圍。
+    // 座標來自 Google Maps 手動標記各角落（元智大學五館）。
     val buildings: List<BuildingBoundary> = listOf(
         BuildingBoundary(
             buildingId = "B5",
             buildingName = "五館",
             polygon = listOf(
-                24.9700 to 121.2350,
-                24.9700 to 121.2360,
-                24.9710 to 121.2360,
-                24.9710 to 121.2350
+                24.970460 to 121.268323,
+                24.970217 to 121.268466,
+                24.970215 to 121.268626,
+                24.969732 to 121.268631,
+                24.969734 to 121.268519,
+                24.969797 to 121.268521,
+                24.969797 to 121.268126,
+                24.970025 to 121.268120,
+                24.970024 to 121.267972
             )
         )
     )
