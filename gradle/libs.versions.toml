@@ -13,6 +13,10 @@ firebaseBom = "34.17.0"
 googleServices = "4.5.0"
 coroutinesPlayServices = "1.10.2"
 playServicesLocation = "21.3.0"
+<<<<<<< HEAD
+=======
+
+>>>>>>> 1af1cf1cd4ac0435ae3e6b8eb933e13f9d9e03a5
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -34,6 +38,10 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutinesPlayServices" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 1af1cf1cd4ac0435ae3e6b8eb933e13f9d9e03a5
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
