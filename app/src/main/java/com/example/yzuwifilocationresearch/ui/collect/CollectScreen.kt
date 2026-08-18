@@ -95,25 +95,33 @@ fun CollectScreen(
     // 組成 FingerprintSample 並寫入 Firestore。位置欄位目前沿用畫面上的 Mock 文字，
     // 等「選擇既有位置」功能做好後，要改成從選中的 LocationPoint 帶入 locationId。
     fun saveFingerprintSample() {
+        // 跟抓 GPS 一樣，寫入 Firestore 也是 suspend fun，要在協程裡呼叫。
         coroutineScope.launch {
+            // 組一筆完整的指紋樣本資料，準備寫入 fingerprintSamples。
             val sample = FingerprintSample(
+                // 位置欄位：目前是沿用畫面上寫死的 Mock 文字（TODO：改成真正選中的位置）。
                 buildingId = "五館",
                 floorId = "4F",
                 positionName = "5402",
                 subPosition = "窗戶旁",
                 locationId = "B5_4F_5402_WINDOW",
                 note = "靠窗右側",
+                // 裝置資訊：真實資料，來自 DeviceInfoProvider。
                 deviceBrand = deviceInfo.deviceBrand,
                 deviceModel = deviceInfo.deviceModel,
                 androidVersion = deviceInfo.androidVersion,
+                // GPS 欄位：用 ?. 安全呼叫，沒定位過就是 null，不塞假數字。
                 gpsLatitude = gpsReading?.latitude,
                 gpsLongitude = gpsReading?.longitude,
                 gpsAccuracy = gpsReading?.accuracy?.toDouble(),
+                // WiFi 掃描還沒實作，先誠實給 0 筆／空清單，不假裝有掃描資料。
                 scanCount = 0,
                 accessPoints = emptyList(),
                 createdAt = System.currentTimeMillis()
             )
+            // 透過 Repository 寫入 Firestore，畫面不直接碰 Firestore API。
             FingerprintRepository().addFingerprint(sample)
+            // 寫入成功後才顯示「已完成」，不是按下按鈕就顯示。
             collected = true
         }
     }
@@ -205,6 +213,7 @@ fun CollectScreen(
                 )
             }
             item {
+                // 按下去呼叫真正的寫入函式，不再只是切換一個假的 UI 狀態。
                 Button(
                     onClick = { saveFingerprintSample() },
                     colors = ButtonDefaults.buttonColors(containerColor = CollectGreen),
@@ -213,6 +222,7 @@ fun CollectScreen(
                     Text("開始採集")
                 }
             }
+            // collected 只有在 Firestore 真的寫入成功後才會變 true。
             if (collected) {
                 item {
                     AppCard {
