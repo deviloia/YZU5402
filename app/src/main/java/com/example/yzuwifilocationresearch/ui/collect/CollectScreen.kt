@@ -76,7 +76,7 @@ fun CollectScreen(
             gpsStatus = if (reading == null) "拿不到定位（權限未開啟或訊號不足）" else null
         }
     }
-
+    
     // 註冊「請求單一權限」的啟動器，之後在按鈕 onClick 裡呼叫 .launch(...) 才會真的跳出對話框。
     // 若使用者已經同意過權限，.launch(...) 不會再跳窗，直接回呼 granted = true。
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -89,7 +89,7 @@ fun CollectScreen(
             gpsStatus = "定位權限被拒絕"
         }
     }
-
+//UI
     AppScaffold(
         title = "Wi-Fi 指紋採集",
         selectedDestination = AppDestination.Collect,
