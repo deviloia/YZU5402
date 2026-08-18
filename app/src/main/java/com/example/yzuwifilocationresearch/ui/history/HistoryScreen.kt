@@ -10,14 +10,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,13 +22,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.yzuwifilocationresearch.navigation.AppDestination
 import com.example.yzuwifilocationresearch.ui.components.ActionBlue
+import com.example.yzuwifilocationresearch.ui.components.AppCard
 import com.example.yzuwifilocationresearch.ui.components.AppScaffold
+import com.example.yzuwifilocationresearch.ui.components.BlueTint
 import com.example.yzuwifilocationresearch.ui.components.CollectGreen
 import com.example.yzuwifilocationresearch.ui.components.GpsRed
-import com.example.yzuwifilocationresearch.ui.components.NeutralBlueGray
+import com.example.yzuwifilocationresearch.ui.components.GrayTint
+import com.example.yzuwifilocationresearch.ui.components.GreenTint
+import com.example.yzuwifilocationresearch.ui.components.RedTint
 import com.example.yzuwifilocationresearch.ui.components.SectionHeader
+import com.example.yzuwifilocationresearch.ui.components.StatusPill
+import com.example.yzuwifilocationresearch.ui.components.TextMuted
+import com.example.yzuwifilocationresearch.ui.components.TextStrong
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -66,8 +71,8 @@ fun HistoryScreen(
             modifier = modifier.fillMaxSize()
         ) {
             item {
-                Card(shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                AppCard {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         SectionHeader("篩選", "館別 / 樓層 / 位置")
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             AssistChip(onClick = {}, label = { Text("館別：五館") })
@@ -112,21 +117,26 @@ fun HistoryScreen(
 
 @Composable
 private fun HistoryRecordCard(record: MockRecord) {
-    Card(shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
+    val isCalibrated = record.status == "已校正"
+    AppCard {
         Row(
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(12.dp)
         ) {
-            Checkbox(checked = record.status == "已校正", onCheckedChange = {})
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.weight(1f)) {
-                Text(record.dateTime, style = MaterialTheme.typography.bodySmall, color = NeutralBlueGray)
-                Text(record.location, fontWeight = FontWeight.SemiBold)
-                Text("${record.deviceModel} / ${record.android}", style = MaterialTheme.typography.bodySmall)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("GPS Error ${record.gpsError}", color = GpsRed, style = MaterialTheme.typography.bodySmall)
-                    Text("Confidence ${record.confidence}", color = ActionBlue, style = MaterialTheme.typography.bodySmall)
-                    Text(record.status, color = if (record.status == "已校正") CollectGreen else NeutralBlueGray, style = MaterialTheme.typography.bodySmall)
+            Checkbox(checked = isCalibrated, onCheckedChange = {})
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
+                Text(record.dateTime, fontSize = 11.5.sp, color = TextMuted)
+                Text(record.location, fontWeight = FontWeight.SemiBold, color = TextStrong)
+                Text("${record.deviceModel} / ${record.android}", fontSize = 12.sp, color = TextMuted)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatusPill(text = "GPS 誤差 ${record.gpsError}", color = GpsRed, background = RedTint)
+                    StatusPill(text = "Confidence ${record.confidence}", color = ActionBlue, background = BlueTint)
+                    StatusPill(
+                        text = record.status,
+                        color = if (isCalibrated) CollectGreen else TextMuted,
+                        background = if (isCalibrated) GreenTint else GrayTint
+                    )
                 }
             }
         }

@@ -1,6 +1,5 @@
 package com.example.yzuwifilocationresearch.ui.collect
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -11,13 +10,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,15 +21,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.yzuwifilocationresearch.device.DeviceInfoProvider
 import com.example.yzuwifilocationresearch.navigation.AppDestination
+import com.example.yzuwifilocationresearch.ui.components.AppCard
 import com.example.yzuwifilocationresearch.ui.components.AppScaffold
 import com.example.yzuwifilocationresearch.ui.components.CollectGreen
-import com.example.yzuwifilocationresearch.ui.components.MockMapCard
-import com.example.yzuwifilocationresearch.ui.components.NeutralBlueGray
+import com.example.yzuwifilocationresearch.ui.components.GreenTint
+import com.example.yzuwifilocationresearch.ui.components.MapPlaceholderCard
+import com.example.yzuwifilocationresearch.ui.components.SectionLabel
+import com.example.yzuwifilocationresearch.ui.components.StatusPill
+import com.example.yzuwifilocationresearch.ui.components.TextMuted
+import com.example.yzuwifilocationresearch.ui.components.TextStrong
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -63,22 +63,21 @@ fun CollectScreen(
             modifier = modifier.fillMaxSize()
         ) {
             item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEAF7EF)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("採集模式：建立位置指紋樣本", fontWeight = FontWeight.SemiBold, color = CollectGreen)
-                        Text("此模式會建立新的 Wi-Fi 指紋資料。", style = MaterialTheme.typography.bodySmall)
+                AppCard {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        StatusPill(text = "採集模式", color = CollectGreen, background = GreenTint)
+                        Text("建立位置指紋樣本", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextStrong)
+                        Text("此模式會建立新的 Wi-Fi 指紋資料。", fontSize = 12.5.sp, color = TextMuted)
                     }
                 }
             }
+            item { SectionLabel("位置資訊") }
             item { MockField("館別", "五館") }
             item { MockField("樓層", "4F") }
             item { MockField("位置名稱", "5402") }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("區域類型", fontWeight = FontWeight.SemiBold)
+                    Text("區域類型", fontWeight = FontWeight.SemiBold, color = TextStrong)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("門口", "室內中", "窗戶旁", "走廊", "廁所", "其他").forEach { area ->
                             AssistChip(
@@ -91,6 +90,7 @@ fun CollectScreen(
                 }
             }
             item { MockField("備註", "靠窗右側") }
+            item { SectionLabel("裝置資訊") }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                     DeviceInfoCard("手機品牌", deviceInfo.deviceBrand, Modifier.weight(1f))
@@ -104,7 +104,7 @@ fun CollectScreen(
                 }
             }
             item {
-                MockMapCard(
+                MapPlaceholderCard(
                     title = "標記實際位置",
                     subtitle = "五館 4F 5402 窗戶旁"
                 )
@@ -120,11 +120,11 @@ fun CollectScreen(
             }
             if (collected) {
                 item {
-                    Text(
-                        text = "Mock 成功：已完成 UI 採集流程，未上傳 Firebase。",
-                        color = CollectGreen,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    AppCard {
+                        Row(Modifier.padding(14.dp)) {
+                            StatusPill(text = "Mock 成功：已完成 UI 採集流程，未上傳 Firebase。", color = CollectGreen, background = GreenTint)
+                        }
+                    }
                 }
             }
         }
@@ -144,14 +144,10 @@ private fun MockField(label: String, value: String) {
 
 @Composable
 private fun DeviceInfoCard(title: String, value: String, modifier: Modifier = Modifier) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(8.dp),
-        modifier = modifier
-    ) {
+    AppCard(modifier = modifier) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.labelMedium, color = NeutralBlueGray)
-            Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text(title, fontSize = 11.5.sp, color = TextMuted)
+            Text(value, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextStrong)
         }
     }
 }
