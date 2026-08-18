@@ -28,7 +28,7 @@ object BuildingLookup {
                 24.970472 to 121.268245
             )
         )
-    )
+    )//五館每個角落的點
 
     /** 回傳座標落在哪一棟建築物範圍內，都不在裡面則回傳 null（不假裝一定有答案）。 */
     fun findBuildingContaining(latitude: Double, longitude: Double): BuildingBoundary? {
@@ -55,5 +55,5 @@ object BuildingLookup {
             j = i
         }
         return isInside
-    }
+    }//透過射線法把點連起來形成武館的框
 }

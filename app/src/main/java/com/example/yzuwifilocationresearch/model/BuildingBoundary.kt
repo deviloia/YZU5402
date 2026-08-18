@@ -9,3 +9,4 @@ data class BuildingBoundary(
     val buildingName: String,
     val polygon: List<Pair<Double, Double>>
 )
+//給予五館BuildingLookup單位
