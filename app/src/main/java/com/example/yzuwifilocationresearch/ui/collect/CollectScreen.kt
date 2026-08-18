@@ -58,11 +58,16 @@ fun CollectScreen(
     var collected by remember { mutableStateOf(false) }
     val deviceInfo = remember { DeviceInfoProvider.getDeviceInfo() }
 
+    // GpsLocationManager 需要 Context 才能建立。
     val context = LocalContext.current
+    // 讓按鈕點擊（非 suspend fun）也能啟動協程呼叫 getCurrentLocation()。
     val coroutineScope = rememberCoroutineScope()
+    // 定位結果，拿到座標前是 null。
     var gpsReading by remember { mutableStateOf<GpsReading?>(null) }
+    // 顯示給使用者看的狀態文字（定位中／失敗原因）。
     var gpsStatus by remember { mutableStateOf<String?>(null) }
 
+    // 實際呼叫 GpsLocationManager 抓一次座標，成功/失敗都更新狀態。
     fun fetchGpsLocation() {
         gpsStatus = "定位中…"
         coroutineScope.launch {
@@ -72,6 +77,8 @@ fun CollectScreen(
         }
     }
 
+    // 註冊「請求單一權限」的啟動器，之後在按鈕 onClick 裡呼叫 .launch(...) 才會真的跳出對話框。
+    // 若使用者已經同意過權限，.launch(...) 不會再跳窗，直接回呼 granted = true。
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -142,6 +149,7 @@ fun CollectScreen(
             item {
                 AppCard {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        // 三選一顯示：有座標 > 有狀態文字（定位中／失敗）> 尚未定位。
                         if (gpsReading != null) {
                             val reading = gpsReading!!
                             Text("緯度：${reading.latitude}", fontSize = 13.sp, color = TextStrong)
@@ -152,6 +160,7 @@ fun CollectScreen(
                         } else {
                             Text("尚未定位", fontSize = 13.sp, color = TextMuted)
                         }
+                        // 按下去才真的跳出系統權限對話框（或已同意過就直接抓定位）。
                         OutlinedButton(
                             onClick = { permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION) },
                             modifier = Modifier.fillMaxWidth()
