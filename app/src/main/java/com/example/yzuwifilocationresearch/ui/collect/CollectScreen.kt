@@ -31,8 +31,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.yzuwifilocationresearch.device.DeviceInfoProvider
+import com.example.yzuwifilocationresearch.firebase.FingerprintRepository
 import com.example.yzuwifilocationresearch.gps.GpsLocationManager
 import com.example.yzuwifilocationresearch.gps.GpsReading
+import com.example.yzuwifilocationresearch.model.FingerprintSample
 import com.example.yzuwifilocationresearch.navigation.AppDestination
 import com.example.yzuwifilocationresearch.ui.components.ActionBlue
 import com.example.yzuwifilocationresearch.ui.components.AppCard
@@ -87,6 +89,32 @@ fun CollectScreen(
         } else {
             gpsReading = null
             gpsStatus = "定位權限被拒絕"
+        }
+    }
+
+    // 組成 FingerprintSample 並寫入 Firestore。位置欄位目前沿用畫面上的 Mock 文字，
+    // 等「選擇既有位置」功能做好後，要改成從選中的 LocationPoint 帶入 locationId。
+    fun saveFingerprintSample() {
+        coroutineScope.launch {
+            val sample = FingerprintSample(
+                buildingId = "五館",
+                floorId = "4F",
+                positionName = "5402",
+                subPosition = "窗戶旁",
+                locationId = "B5_4F_5402_WINDOW",
+                note = "靠窗右側",
+                deviceBrand = deviceInfo.deviceBrand,
+                deviceModel = deviceInfo.deviceModel,
+                androidVersion = deviceInfo.androidVersion,
+                gpsLatitude = gpsReading?.latitude,
+                gpsLongitude = gpsReading?.longitude,
+                gpsAccuracy = gpsReading?.accuracy?.toDouble(),
+                scanCount = 0,
+                accessPoints = emptyList(),
+                createdAt = System.currentTimeMillis()
+            )
+            FingerprintRepository().addFingerprint(sample)
+            collected = true
         }
     }
 //UI
@@ -178,7 +206,7 @@ fun CollectScreen(
             }
             item {
                 Button(
-                    onClick = { collected = true },
+                    onClick = { saveFingerprintSample() },
                     colors = ButtonDefaults.buttonColors(containerColor = CollectGreen),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -189,7 +217,7 @@ fun CollectScreen(
                 item {
                     AppCard {
                         Row(Modifier.padding(14.dp)) {
-                            StatusPill(text = "Mock 成功：已完成 UI 採集流程，未上傳 Firebase。", color = CollectGreen, background = GreenTint)
+                            StatusPill(text = "已寫入 Firestore（fingerprintSamples）。", color = CollectGreen, background = GreenTint)
                         }
                     }
                 }
