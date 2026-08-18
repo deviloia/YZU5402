@@ -7,7 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.yzuwifilocationresearch.ui.collect.CollectScreen
 import com.example.yzuwifilocationresearch.ui.history.HistoryScreen
-import com.example.yzuwifilocationresearch.ui.home.HomeScreen
+import com.example.yzuwifilocationresearch.ui.home.HomeScreenRedesign
 import com.example.yzuwifilocationresearch.ui.locationedit.LocationEditScreen
 import com.example.yzuwifilocationresearch.ui.result.ResultScreen
 import com.example.yzuwifilocationresearch.ui.scan.ScanLoadingScreen
@@ -21,7 +21,7 @@ fun AppNavGraph(
         startDestination = AppDestination.Home.route
     ) {
         composable(AppDestination.Home.route) {
-            HomeScreen(
+            HomeScreenRedesign(
                 onCollectClick = { navController.navigate(AppDestination.Collect.route) },
                 onScanClick = { navController.navigate(AppDestination.ScanLoading.route) },
                 onHistoryClick = { navController.navigate(AppDestination.History.route) }
