@@ -1,5 +1,8 @@
 package com.example.yzuwifilocationresearch.ui.collect
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -13,19 +16,25 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.yzuwifilocationresearch.device.DeviceInfoProvider
+import com.example.yzuwifilocationresearch.gps.GpsLocationManager
+import com.example.yzuwifilocationresearch.gps.GpsReading
 import com.example.yzuwifilocationresearch.navigation.AppDestination
+import com.example.yzuwifilocationresearch.ui.components.ActionBlue
 import com.example.yzuwifilocationresearch.ui.components.AppCard
 import com.example.yzuwifilocationresearch.ui.components.AppScaffold
 import com.example.yzuwifilocationresearch.ui.components.CollectGreen
@@ -35,6 +44,7 @@ import com.example.yzuwifilocationresearch.ui.components.SectionLabel
 import com.example.yzuwifilocationresearch.ui.components.StatusPill
 import com.example.yzuwifilocationresearch.ui.components.TextMuted
 import com.example.yzuwifilocationresearch.ui.components.TextStrong
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -47,6 +57,31 @@ fun CollectScreen(
 ) {
     var collected by remember { mutableStateOf(false) }
     val deviceInfo = remember { DeviceInfoProvider.getDeviceInfo() }
+
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var gpsReading by remember { mutableStateOf<GpsReading?>(null) }
+    var gpsStatus by remember { mutableStateOf<String?>(null) }
+
+    fun fetchGpsLocation() {
+        gpsStatus = "定位中…"
+        coroutineScope.launch {
+            val reading = GpsLocationManager(context).getCurrentLocation()
+            gpsReading = reading
+            gpsStatus = if (reading == null) "拿不到定位（權限未開啟或訊號不足）" else null
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            fetchGpsLocation()
+        } else {
+            gpsReading = null
+            gpsStatus = "定位權限被拒絕"
+        }
+    }
 
     AppScaffold(
         title = "Wi-Fi 指紋採集",
@@ -101,6 +136,29 @@ fun CollectScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                     DeviceInfoCard("Android 版本", deviceInfo.androidVersion, Modifier.weight(1f))
                     DeviceInfoCard("API Level", deviceInfo.apiLevel.toString(), Modifier.weight(1f))
+                }
+            }
+            item { SectionLabel("GPS 定位測試") }
+            item {
+                AppCard {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (gpsReading != null) {
+                            val reading = gpsReading!!
+                            Text("緯度：${reading.latitude}", fontSize = 13.sp, color = TextStrong)
+                            Text("經度：${reading.longitude}", fontSize = 13.sp, color = TextStrong)
+                            Text("精確度：±${reading.accuracy} m", fontSize = 12.sp, color = TextMuted)
+                        } else if (gpsStatus != null) {
+                            Text(gpsStatus!!, fontSize = 13.sp, color = TextMuted)
+                        } else {
+                            Text("尚未定位", fontSize = 13.sp, color = TextMuted)
+                        }
+                        OutlinedButton(
+                            onClick = { permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("測試 GPS 定位", color = ActionBlue)
+                        }
+                    }
                 }
             }
             item {
