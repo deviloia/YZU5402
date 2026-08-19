@@ -6,3 +6,4 @@ data class WifiScanResult(
     val rssi: Int = 0,
     val frequency: Int = 0
 )
+//拿取資料格式地方
