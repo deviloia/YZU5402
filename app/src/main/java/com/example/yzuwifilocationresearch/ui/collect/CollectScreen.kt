@@ -35,7 +35,11 @@ import com.example.yzuwifilocationresearch.firebase.FingerprintRepository
 import com.example.yzuwifilocationresearch.gps.GpsLocationManager
 import com.example.yzuwifilocationresearch.gps.GpsReading
 import com.example.yzuwifilocationresearch.model.FingerprintSample
+import com.example.yzuwifilocationresearch.model.WifiScanResult
 import com.example.yzuwifilocationresearch.navigation.AppDestination
+import com.example.yzuwifilocationresearch.wifi.WifiScanProcessor
+import com.example.yzuwifilocationresearch.wifi.WifiScanner
+import com.example.yzuwifilocationresearch.wifi.WifiStatistics
 import com.example.yzuwifilocationresearch.ui.components.ActionBlue
 import com.example.yzuwifilocationresearch.ui.components.AppCard
 import com.example.yzuwifilocationresearch.ui.components.AppScaffold
@@ -59,6 +63,11 @@ fun CollectScreen(
 ) {
     var collected by remember { mutableStateOf(false) }
     val deviceInfo = remember { DeviceInfoProvider.getDeviceInfo() }
+    // 採集進度文字（第 N/10 次掃描），採集期間顯示，完成或未開始時是 null。
+    var scanProgress by remember { mutableStateOf<String?>(null) }
+
+    // 依規則預設值，採集模式連續掃描 10 次。
+    val collectScanRounds = 10
 
     // GpsLocationManager 需要 Context 才能建立。
     val context = LocalContext.current
@@ -97,6 +106,19 @@ fun CollectScreen(
     fun saveFingerprintSample() {
         // 跟抓 GPS 一樣，寫入 Firestore 也是 suspend fun，要在協程裡呼叫。
         coroutineScope.launch {
+            // 連續掃描 collectScanRounds 次，每次掃完更新一次進度文字。
+            val scanner = WifiScanner(context)
+            val rounds = mutableListOf<List<WifiScanResult>>()
+            repeat(collectScanRounds) { index ->
+                scanProgress = "Wi-Fi 掃描中… ${index + 1}/$collectScanRounds"
+                rounds += scanner.scanOnce()
+            }
+            scanProgress = null
+
+            // 依 BSSID 分組，再算出每個 AP 的統計值。
+            val grouped = WifiScanProcessor.groupByBssid(rounds)
+            val accessPoints = WifiStatistics.computeAccessPoints(grouped)
+
             // 組一筆完整的指紋樣本資料，準備寫入 fingerprintSamples。
             val sample = FingerprintSample(
                 // 位置欄位：目前是沿用畫面上寫死的 Mock 文字（TODO：改成真正選中的位置）。
@@ -114,9 +136,9 @@ fun CollectScreen(
                 gpsLatitude = gpsReading?.latitude,
                 gpsLongitude = gpsReading?.longitude,
                 gpsAccuracy = gpsReading?.accuracy?.toDouble(),
-                // WiFi 掃描還沒實作，先誠實給 0 筆／空清單，不假裝有掃描資料。
-                scanCount = 0,
-                accessPoints = emptyList(),
+                // WiFi 掃描結果：真實資料，來自 WifiScanner → WifiScanProcessor → WifiStatistics。
+                scanCount = collectScanRounds,
+                accessPoints = accessPoints,
                 createdAt = System.currentTimeMillis()
             )
             // 透過 Repository 寫入 Firestore，畫面不直接碰 Firestore API。
@@ -212,14 +234,25 @@ fun CollectScreen(
                     subtitle = "五館 4F 5402 窗戶旁"
                 )
             }
+            if (scanProgress != null) {
+                item {
+                    AppCard {
+                        Row(Modifier.padding(14.dp)) {
+                            StatusPill(text = scanProgress!!, color = ActionBlue, background = GreenTint)
+                        }
+                    }
+                }
+            }
             item {
                 // 按下去呼叫真正的寫入函式，不再只是切換一個假的 UI 狀態。
+                // 掃描期間（scanProgress != null）停用按鈕，避免重複觸發。
                 Button(
                     onClick = { saveFingerprintSample() },
+                    enabled = scanProgress == null,
                     colors = ButtonDefaults.buttonColors(containerColor = CollectGreen),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("開始採集")
+                    Text(if (scanProgress != null) "採集中…" else "開始採集")
                 }
             }
             // collected 只有在 Firestore 真的寫入成功後才會變 true。
