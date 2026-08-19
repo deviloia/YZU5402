@@ -1,6 +1,7 @@
 package com.example.yzuwifilocationresearch.wifi
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -24,6 +25,7 @@ class WifiScanner(context: Context) {
             PackageManager.PERMISSION_GRANTED
 
     /** 觸發一次掃描，等系統廣播「掃描完成」後回傳結果。沒權限或啟動失敗回傳空清單。 */
+    @SuppressLint("MissingPermission")
     suspend fun scanOnce(): List<WifiScanResult> {
         if (!hasPermission) return emptyList()
 
