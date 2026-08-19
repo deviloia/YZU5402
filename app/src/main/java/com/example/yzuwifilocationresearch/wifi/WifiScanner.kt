@@ -29,7 +29,7 @@ class WifiScanner(context: Context) {
     suspend fun scanOnce(): List<WifiScanResult> {
         if (!hasPermission) return emptyList()
 
-        return suspend  CancellableCoroutine { continuation ->
+        return suspendCancellableCoroutine { continuation ->
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(receivedContext: Context, intent: Intent) {
                     runCatching { appContext.unregisterReceiver(this) }
