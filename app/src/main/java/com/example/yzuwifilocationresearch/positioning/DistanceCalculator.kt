@@ -14,16 +14,21 @@ object DistanceCalculator {
 
     /** 歐氏距離：sqrt(Σ(RSSI差)^2)，只累加兩邊共同出現的 BSSID。 */
     fun euclideanDistance(a: List<AccessPoint>, b: List<AccessPoint>): Double {
+        // 把清單轉成 Map<BSSID, AccessPoint>，之後用 BSSID 當 key 快速查值。
         val aByBssid = a.associateBy { it.bssid }
         val bByBssid = b.associateBy { it.bssid }
+        // 只有兩邊都掃到的 AP 才拿來比對，任一邊沒收到訊號的 AP 直接忽略。
         val commonBssids = aByBssid.keys.intersect(bByBssid.keys)
 
+        // 完全沒有共同 AP，代表兩邊環境差太多，直接視為「最不像」。
         if (commonBssids.isEmpty()) return NO_COMMON_AP_DISTANCE
 
+        // 每個共同 AP 算一次 (a的meanRssi - b的meanRssi)^2，全部加總。
         val sumOfSquares = commonBssids.sumOf { bssid ->
             val diff = aByBssid.getValue(bssid).meanRssi - bByBssid.getValue(bssid).meanRssi
             diff * diff
         }
+        // 開根號還原成距離的單位。
         return sqrt(sumOfSquares)
     }
 }
