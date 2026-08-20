@@ -19,8 +19,10 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -56,6 +59,9 @@ import com.example.yzuwifilocationresearch.wifi.WifiScanner
 import com.example.yzuwifilocationresearch.wifi.WifiStatistics
 import kotlinx.coroutines.launch
 
+private const val DEFAULT_NOTE = "靠窗右側"
+private const val DEFAULT_FLOOR = "4F"
+private const val DEFAULT_POSITION_NAME = "5402"
 private val buildingOptions = listOf("一館", "二館", "三館", "五館", "六館", "七館")
 private val areaTypeOptions = listOf("門口", "室內中", "窗戶旁", "走廊", "廁所", "其他")
 
@@ -73,10 +79,13 @@ fun CollectScreen(
     var formError by remember { mutableStateOf<String?>(null) }
 
     var buildingId by remember { mutableStateOf("五館") }
-    var floorId by remember { mutableStateOf("4F") }
-    var positionName by remember { mutableStateOf("5402") }
+    var floorId by remember { mutableStateOf(DEFAULT_FLOOR) }
+    var positionName by remember { mutableStateOf(DEFAULT_POSITION_NAME) }
     var areaType by remember { mutableStateOf("窗戶旁") }
-    var note by remember { mutableStateOf("靠窗右側") }
+    var note by remember { mutableStateOf(DEFAULT_NOTE) }
+    var defaultFloorCleared by remember { mutableStateOf(false) }
+    var defaultPositionNameCleared by remember { mutableStateOf(false) }
+    var defaultNoteCleared by remember { mutableStateOf(false) }
 
     val collectScanRounds = 10
     val context = LocalContext.current
@@ -211,7 +220,13 @@ fun CollectScreen(
                     label = "樓層",
                     value = floorId,
                     enabled = scanProgress == null,
-                    onValueChange = { floorId = it }
+                    onValueChange = { floorId = it },
+                    modifier = Modifier.onFocusChanged { focusState ->
+                        if (focusState.isFocused && !defaultFloorCleared && floorId == DEFAULT_FLOOR) {
+                            floorId = ""
+                            defaultFloorCleared = true
+                        }
+                    }
                 )
             }
             item {
@@ -219,7 +234,17 @@ fun CollectScreen(
                     label = "位置名稱",
                     value = positionName,
                     enabled = scanProgress == null,
-                    onValueChange = { positionName = it }
+                    onValueChange = { positionName = it },
+                    modifier = Modifier.onFocusChanged { focusState ->
+                        if (
+                            focusState.isFocused &&
+                            !defaultPositionNameCleared &&
+                            positionName == DEFAULT_POSITION_NAME
+                        ) {
+                            positionName = ""
+                            defaultPositionNameCleared = true
+                        }
+                    }
                 )
             }
             item {
@@ -242,7 +267,13 @@ fun CollectScreen(
                     label = "備註",
                     value = note,
                     enabled = scanProgress == null,
-                    onValueChange = { note = it }
+                    onValueChange = { note = it },
+                    modifier = Modifier.onFocusChanged { focusState ->
+                        if (focusState.isFocused && !defaultNoteCleared && note == DEFAULT_NOTE) {
+                            note = ""
+                            defaultNoteCleared = true
+                        }
+                    }
                 )
             }
 
@@ -342,7 +373,7 @@ private fun BuildingDropdownField(
             enabled = enabled,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("館別：$value")
+            Text("館別：$value", color = MaterialTheme.colorScheme.onSurface)
         }
         DropdownMenu(
             expanded = expanded,
@@ -350,7 +381,7 @@ private fun BuildingDropdownField(
         ) {
             buildingOptions.forEach { building ->
                 DropdownMenuItem(
-                    text = { Text(building) },
+                    text = { Text(building, color = MaterialTheme.colorScheme.onSurface) },
                     onClick = {
                         onValueChange(building)
                         expanded = false
@@ -366,6 +397,7 @@ private fun EditableField(
     label: String,
     value: String,
     enabled: Boolean,
+    modifier: Modifier = Modifier,
     onValueChange: (String) -> Unit
 ) {
     OutlinedTextField(
@@ -374,7 +406,12 @@ private fun EditableField(
         enabled = enabled,
         readOnly = false,
         label = { Text(label) },
-        modifier = Modifier.fillMaxWidth()
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+            disabledTextColor = MaterialTheme.colorScheme.onSurface
+        ),
+        modifier = modifier.fillMaxWidth()
     )
 }
 
