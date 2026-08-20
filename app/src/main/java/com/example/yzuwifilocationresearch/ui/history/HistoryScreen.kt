@@ -69,6 +69,7 @@ fun HistoryScreen(
     val scope = rememberCoroutineScope()
     val repository = remember { TestResultRepository() }
     var uiState by remember { mutableStateOf(HistoryUiState(isLoading = true)) }
+    var selectedResultIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var pendingCsv by remember { mutableStateOf<String?>(null) }
 
     fun loadHistory() {
@@ -79,6 +80,10 @@ fun HistoryScreen(
                     repository.getAllTestResults()
                         .sortedByDescending { it.createdAt ?: Long.MIN_VALUE }
                 }
+                val visibleIds = results.mapIndexed { index, result ->
+                    result.selectionId(index)
+                }.toSet()
+                selectedResultIds = selectedResultIds.intersect(visibleIds)
                 HistoryUiState(results = results)
             } catch (error: Exception) {
                 HistoryUiState(errorMessage = error.message ?: "Failed to load history")
@@ -208,7 +213,19 @@ fun HistoryScreen(
 
                 else -> {
                     itemsIndexed(uiState.results) { index, result ->
-                        HistoryRecordCard(result = result, fallbackIndex = index)
+                        val selectionId = result.selectionId(index)
+                        HistoryRecordCard(
+                            result = result,
+                            fallbackIndex = index,
+                            selected = selectionId in selectedResultIds,
+                            onSelectedChange = { checked ->
+                                selectedResultIds = if (checked) {
+                                    selectedResultIds + selectionId
+                                } else {
+                                    selectedResultIds - selectionId
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -261,7 +278,12 @@ private fun EmptyHistoryCard() {
 }
 
 @Composable
-private fun HistoryRecordCard(result: TestResult, fallbackIndex: Int) {
+private fun HistoryRecordCard(
+    result: TestResult,
+    fallbackIndex: Int,
+    selected: Boolean,
+    onSelectedChange: (Boolean) -> Unit
+) {
     val hasGroundTruth = result.trueLocationId != null
     AppCard {
         Row(
@@ -269,7 +291,7 @@ private fun HistoryRecordCard(result: TestResult, fallbackIndex: Int) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(12.dp)
         ) {
-            Checkbox(checked = hasGroundTruth, onCheckedChange = null)
+            Checkbox(checked = selected, onCheckedChange = onSelectedChange)
             Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
                 Text(formatDateTime(result.createdAt), fontSize = 11.5.sp, color = TextMuted)
                 Text(formatPredictedLocation(result, fallbackIndex), fontWeight = FontWeight.SemiBold, color = TextStrong)
@@ -286,6 +308,12 @@ private fun HistoryRecordCard(result: TestResult, fallbackIndex: Int) {
                 }
             }
         }
+    }
+}
+
+private fun TestResult.selectionId(fallbackIndex: Int): String {
+    return documentId.ifBlank {
+        createdAt?.let { "createdAt:$it" } ?: "row:$fallbackIndex"
     }
 }
 

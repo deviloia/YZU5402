@@ -22,9 +22,9 @@ fun AppNavGraph(
     ) {
         composable(AppDestination.Home.route) {
             HomeScreenRedesign(
-                onCollectClick = { navController.navigate(AppDestination.Collect.route) },
-                onScanClick = { navController.navigate(AppDestination.ScanLoading.route) },
-                onHistoryClick = { navController.navigate(AppDestination.History.route) }
+                onCollectClick = { navController.navigateSingleTop(AppDestination.Collect.route) },
+                onScanClick = { navController.navigateSingleTop(AppDestination.ScanLoading.route) },
+                onHistoryClick = { navController.navigateSingleTop(AppDestination.History.route) }
             )
         }
         composable(AppDestination.Collect.route) {
@@ -32,7 +32,7 @@ fun AppNavGraph(
                 onBackClick = { navController.popBackStack() },
                 onHomeClick = { navController.navigateSingleTop(AppDestination.Home.route) },
                 onCollectClick = { navController.navigateSingleTop(AppDestination.Collect.route) },
-                onScanClick = { navController.navigate(AppDestination.ScanLoading.route) },
+                onScanClick = { navController.navigateSingleTop(AppDestination.ScanLoading.route) },
                 onHistoryClick = { navController.navigateSingleTop(AppDestination.History.route) }
             )
         }
@@ -48,7 +48,7 @@ fun AppNavGraph(
                 },
                 onHomeClick = { navController.navigateSingleTop(AppDestination.Home.route) },
                 onCollectClick = { navController.navigateSingleTop(AppDestination.Collect.route) },
-                onScanClick = { navController.navigate(AppDestination.ScanLoading.route) },
+                onScanClick = { navController.navigateSingleTop(AppDestination.ScanLoading.route) },
                 onHistoryClick = { navController.navigateSingleTop(AppDestination.History.route) }
             )
         }
@@ -57,7 +57,7 @@ fun AppNavGraph(
                 onBackClick = { navController.popBackStack() },
                 onHomeClick = { navController.navigateSingleTop(AppDestination.Home.route) },
                 onCollectClick = { navController.navigateSingleTop(AppDestination.Collect.route) },
-                onScanClick = { navController.navigate(AppDestination.ScanLoading.route) },
+                onScanClick = { navController.navigateSingleTop(AppDestination.ScanLoading.route) },
                 onHistoryClick = { navController.navigateSingleTop(AppDestination.History.route) }
             )
         }
@@ -67,7 +67,7 @@ fun AppNavGraph(
                 onEditLocationClick = { navController.navigate(AppDestination.LocationEdit.route) },
                 onHomeClick = { navController.navigateSingleTop(AppDestination.Home.route) },
                 onCollectClick = { navController.navigateSingleTop(AppDestination.Collect.route) },
-                onScanClick = { navController.navigate(AppDestination.ScanLoading.route) },
+                onScanClick = { navController.navigateSingleTop(AppDestination.ScanLoading.route) },
                 onHistoryClick = { navController.navigateSingleTop(AppDestination.History.route) }
             )
         }
@@ -76,7 +76,7 @@ fun AppNavGraph(
                 onBackClick = { navController.popBackStack() },
                 onHomeClick = { navController.navigateSingleTop(AppDestination.Home.route) },
                 onCollectClick = { navController.navigateSingleTop(AppDestination.Collect.route) },
-                onScanClick = { navController.navigate(AppDestination.ScanLoading.route) },
+                onScanClick = { navController.navigateSingleTop(AppDestination.ScanLoading.route) },
                 onHistoryClick = { navController.navigateSingleTop(AppDestination.History.route) }
             )
         }
@@ -84,6 +84,8 @@ fun AppNavGraph(
 }
 
 private fun NavHostController.navigateSingleTop(route: String) {
+    if (currentDestination?.route == route) return
+
     navigate(route) {
         launchSingleTop = true
         popUpTo(AppDestination.Home.route) {
