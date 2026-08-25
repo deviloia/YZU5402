@@ -76,7 +76,9 @@ fun ScanLoadingScreen(
             val rounds = mutableListOf<List<WifiScanResult>>()
             repeat(TEST_SCAN_ROUNDS) { index ->
                 stepText = "Wi-Fi 掃描中… ${index + 1}/$TEST_SCAN_ROUNDS"
-                rounds += scanner.scanOnce()
+                rounds += scanner.scanOnce(
+                    onThrottled = { stepText = "系統限制掃描頻率，等待中…（第${index + 1}輪）" }
+                )
             }
 
             stepText = "比對指紋資料庫…"

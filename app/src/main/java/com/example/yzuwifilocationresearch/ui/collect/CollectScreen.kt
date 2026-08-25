@@ -111,7 +111,9 @@ fun CollectScreen(
             val rounds = mutableListOf<List<WifiScanResult>>()
             repeat(collectScanRounds) { index ->
                 scanProgress = "Wi-Fi 掃描中… ${index + 1}/$collectScanRounds"
-                rounds += scanner.scanOnce()
+                rounds += scanner.scanOnce(
+                    onThrottled = { scanProgress = "系統限制掃描頻率，等待中…（第${index + 1}輪）" }
+                )
             }
             scanProgress = null
 
