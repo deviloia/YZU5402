@@ -39,8 +39,10 @@ import com.example.yzuwifilocationresearch.positioning.KnnLocator
 import com.example.yzuwifilocationresearch.ui.components.ActionBlue
 import com.example.yzuwifilocationresearch.ui.components.AppCard
 import com.example.yzuwifilocationresearch.ui.components.AppScaffold
+import com.example.yzuwifilocationresearch.ui.components.MapPlaceholderCard
 import com.example.yzuwifilocationresearch.ui.components.TextMuted
 import com.example.yzuwifilocationresearch.ui.components.TextStrong
+import com.example.yzuwifilocationresearch.ui.components.WebMapCard
 import com.example.yzuwifilocationresearch.wifi.WifiScanProcessor
 import com.example.yzuwifilocationresearch.wifi.WifiScanner
 import com.example.yzuwifilocationresearch.wifi.WifiStatistics
@@ -65,12 +67,17 @@ fun ScanLoadingScreen(
 
     // 顯示目前跑到哪一步，取代原本寫死的 Mock 文字。
     var stepText by remember { mutableStateOf("準備中…") }
+    // 拿到 GPS 座標後才顯示地圖，用來即時顯示目前定位到的位置。
+    var currentLatitude by remember { mutableStateOf<Double?>(null) }
+    var currentLongitude by remember { mutableStateOf<Double?>(null) }
 
     // 整條測試流程：GPS → WiFi 掃描 N 次 → 讀指紋資料庫 → KNN → Confidence → 寫入 testResults。
     fun runTestFlow() {
         coroutineScope.launch {
             stepText = "取得 GPS 位置…"
             val gpsReading = GpsLocationManager(context).getCurrentLocation()
+            currentLatitude = gpsReading?.latitude
+            currentLongitude = gpsReading?.longitude
 
             val scanner = WifiScanner(context)
             val rounds = mutableListOf<List<WifiScanResult>>()
@@ -174,6 +181,18 @@ fun ScanLoadingScreen(
                         Text("目前狀態", fontWeight = FontWeight.SemiBold, color = TextStrong)
                         Text(stepText, fontSize = 13.sp, color = TextMuted)
                     }
+                }
+            }
+            item {
+                val latitude = currentLatitude
+                val longitude = currentLongitude
+                if (latitude != null && longitude != null) {
+                    WebMapCard(latitude = latitude, longitude = longitude)
+                } else {
+                    MapPlaceholderCard(
+                        title = "即時位置",
+                        subtitle = "定位完成後會在這裡顯示地圖"
+                    )
                 }
             }
         }
