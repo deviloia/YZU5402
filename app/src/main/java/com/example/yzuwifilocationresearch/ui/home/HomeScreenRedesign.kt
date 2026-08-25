@@ -1,5 +1,6 @@
 package com.example.yzuwifilocationresearch.ui.home
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,6 +15,11 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,7 +28,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.yzuwifilocationresearch.firebase.LocationRepository
 import com.example.yzuwifilocationresearch.ui.components.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * 改版首頁。獨立檔案，不覆寫原本的 HomeScreen。
@@ -35,7 +44,6 @@ fun HomeScreenRedesign(
     sampleCount: Int? = null,
     testCount: Int? = null,
     calibratedCount: Int? = null,
-    firestoreConnected: Boolean = false,
     lastResultTitle: String? = null,
     lastResultTime: String? = null,
     lastConfidencePercent: Int? = null,
@@ -45,12 +53,27 @@ fun HomeScreenRedesign(
     onHistoryClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var firestoreStatus by remember { mutableStateOf(FirestoreStatus.Checking) }
+
+    LaunchedEffect(Unit) {
+        firestoreStatus = FirestoreStatus.Checking
+        firestoreStatus = try {
+            withContext(Dispatchers.IO) {
+                LocationRepository().getAllLocations()
+            }
+            FirestoreStatus.Connected
+        } catch (error: Exception) {
+            Log.e("HomeScreenRedesign", "Firestore status check failed", error)
+            FirestoreStatus.Failed
+        }
+    }
+
     Column(modifier.fillMaxSize().background(ScreenBackground)) {
         HomeHero(
             sampleCount = sampleCount,
             testCount = testCount,
             calibratedCount = calibratedCount,
-            firestoreConnected = firestoreConnected
+            firestoreStatus = firestoreStatus
         )
 
         Column(
@@ -100,7 +123,7 @@ private fun HomeHero(
     sampleCount: Int?,
     testCount: Int?,
     calibratedCount: Int?,
-    firestoreConnected: Boolean
+    firestoreStatus: FirestoreStatus
 ) {
     Column(
         modifier = Modifier
@@ -133,10 +156,10 @@ private fun HomeHero(
                     Modifier
                         .size(6.dp)
                         .clip(CircleShape)
-                        .background(if (firestoreConnected) Color(0xFF4ADE80) else TextMuted)
+                        .background(firestoreStatus.dotColor)
                 )
                 Text(
-                    if (firestoreConnected) "Firestore 已連線" else "Firestore 未連線",
+                    firestoreStatus.label,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White.copy(alpha = 0.9f)
@@ -173,6 +196,15 @@ private fun HomeHero(
             HeroStat("已校正", calibratedCount, Modifier.weight(1f))
         }
     }
+}
+
+private enum class FirestoreStatus(
+    val label: String,
+    val dotColor: Color
+) {
+    Checking("Firestore 檢查中", Color(0xFFFBBF24)),
+    Connected("Firestore 已連線", Color(0xFF4ADE80)),
+    Failed("Firestore 連線失敗", Color(0xFFF87171))
 }
 
 @Composable

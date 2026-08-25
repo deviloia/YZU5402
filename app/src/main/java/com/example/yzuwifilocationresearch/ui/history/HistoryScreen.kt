@@ -44,7 +44,7 @@ import com.example.yzuwifilocationresearch.ui.components.GpsRed
 import com.example.yzuwifilocationresearch.ui.components.GrayTint
 import com.example.yzuwifilocationresearch.ui.components.GreenTint
 import com.example.yzuwifilocationresearch.ui.components.RedTint
-import com.example.yzuwifilocationresearch.ui.components.SectionLabel
+import com.example.yzuwifilocationresearch.ui.components.SectionHeader
 import com.example.yzuwifilocationresearch.ui.components.StatusPill
 import com.example.yzuwifilocationresearch.ui.components.TextMuted
 import com.example.yzuwifilocationresearch.ui.components.TextStrong
@@ -69,7 +69,7 @@ fun HistoryScreen(
     val scope = rememberCoroutineScope()
     val repository = remember { TestResultRepository() }
     var uiState by remember { mutableStateOf(HistoryUiState(isLoading = true)) }
-    // CreateDocument 的回呼是非同步的，先把要寫入的 CSV 內容暫存起來，等使用者選好存檔位置再真正寫入。
+    var selectedResultIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var pendingCsv by remember { mutableStateOf<String?>(null) }
 
     fun loadHistory() {
@@ -80,9 +80,13 @@ fun HistoryScreen(
                     repository.getAllTestResults()
                         .sortedByDescending { it.createdAt ?: Long.MIN_VALUE }
                 }
+                val visibleIds = results.mapIndexed { index, result ->
+                    result.selectionId(index)
+                }.toSet()
+                selectedResultIds = selectedResultIds.intersect(visibleIds)
                 HistoryUiState(results = results)
             } catch (error: Exception) {
-                HistoryUiState(errorMessage = error.message ?: "讀取失敗")
+                HistoryUiState(errorMessage = error.message ?: "Failed to load history")
             }
         }
     }
@@ -95,20 +99,19 @@ fun HistoryScreen(
                         OutputStreamWriter(outputStream, Charsets.UTF_8).use { writer ->
                             writer.write(csv)
                         }
-                    } ?: error("無法開啟匯出目的地")
+                    } ?: error("Cannot open export destination")
                 }
             }
             uiState = uiState.copy(
                 exportMessage = if (result.isSuccess) {
-                    "CSV 已匯出"
+                    "CSV exported"
                 } else {
-                    "CSV 匯出失敗：${result.exceptionOrNull()?.message.orEmpty()}"
+                    "CSV export failed: ${result.exceptionOrNull()?.message.orEmpty()}"
                 }
             )
         }
     }
 
-    // 讓使用者自己選存檔位置（系統的檔案選擇器），選好後才真正寫入。
     val createCsvLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
     ) { uri ->
@@ -124,7 +127,7 @@ fun HistoryScreen(
     }
 
     AppScaffold(
-        title = "歷史紀錄",
+        title = "History",
         selectedDestination = AppDestination.History,
         onBackClick = onBackClick,
         onHomeClick = onHomeClick,
@@ -137,15 +140,15 @@ fun HistoryScreen(
             contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 32.dp),
             modifier = modifier.fillMaxSize()
         ) {
-            item { SectionLabel("測試紀錄（testResults）") }
             item {
                 AppCard {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SectionHeader("testResults", "Live Firestore test result records")
                         Text(
                             text = if (uiState.results.isEmpty()) {
-                                "尚無測試紀錄"
+                                "No test results loaded"
                             } else {
-                                "共 ${uiState.results.size} 筆"
+                                "${uiState.results.size} records"
                             },
                             fontSize = 12.5.sp,
                             color = TextMuted
@@ -160,7 +163,7 @@ fun HistoryScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = ActionBlue),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("修改 Ground Truth")
+                        Text("Edit Ground Truth")
                     }
                     OutlinedButton(
                         onClick = {
@@ -170,22 +173,27 @@ fun HistoryScreen(
                         enabled = uiState.results.isNotEmpty(),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("下載全部 CSV")
+                        Text("Export CSV")
                     }
                 }
             }
             uiState.exportMessage?.let { message ->
                 item {
                     AppCard {
-                        Row(Modifier.padding(14.dp)) {
-                            StatusPill(text = message, color = ActionBlue, background = BlueTint)
-                        }
+                        Text(
+                            text = message,
+                            modifier = Modifier.padding(14.dp),
+                            fontSize = 12.5.sp,
+                            color = TextMuted
+                        )
                     }
                 }
             }
             when {
                 uiState.isLoading -> {
-                    item { LoadingCard() }
+                    item {
+                        LoadingCard()
+                    }
                 }
 
                 uiState.errorMessage != null -> {
@@ -198,12 +206,26 @@ fun HistoryScreen(
                 }
 
                 uiState.results.isEmpty() -> {
-                    item { EmptyHistoryCard() }
+                    item {
+                        EmptyHistoryCard()
+                    }
                 }
 
                 else -> {
                     itemsIndexed(uiState.results) { index, result ->
-                        HistoryRecordCard(result = result, fallbackIndex = index)
+                        val selectionId = result.selectionId(index)
+                        HistoryRecordCard(
+                            result = result,
+                            fallbackIndex = index,
+                            selected = selectionId in selectedResultIds,
+                            onSelectedChange = { checked ->
+                                selectedResultIds = if (checked) {
+                                    selectedResultIds + selectionId
+                                } else {
+                                    selectedResultIds - selectionId
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -227,7 +249,7 @@ private fun LoadingCard() {
             modifier = Modifier.padding(16.dp)
         ) {
             CircularProgressIndicator()
-            Text("讀取 Firestore 歷史紀錄中…", color = TextMuted)
+            Text("Loading Firestore history", color = TextMuted)
         }
     }
 }
@@ -236,10 +258,10 @@ private fun LoadingCard() {
 private fun ErrorCard(message: String, onRetryClick: () -> Unit) {
     AppCard {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("讀取失敗", fontWeight = FontWeight.SemiBold, color = TextStrong)
+            Text("Load failed", fontWeight = FontWeight.SemiBold, color = TextStrong)
             Text(message, fontSize = 12.5.sp, color = TextMuted)
             OutlinedButton(onClick = onRetryClick) {
-                Text("重新讀取")
+                Text("Reload")
             }
         }
     }
@@ -249,14 +271,19 @@ private fun ErrorCard(message: String, onRetryClick: () -> Unit) {
 private fun EmptyHistoryCard() {
     AppCard {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("尚無測試紀錄", fontWeight = FontWeight.SemiBold, color = TextStrong)
-            Text("Firestore 裡還沒有任何 testResults 紀錄，不會顯示假資料，CSV 匯出也會停用。", fontSize = 12.5.sp, color = TextMuted)
+            Text("No testResults", fontWeight = FontWeight.SemiBold, color = TextStrong)
+            Text("Firestore has no test result records yet. No mock data is shown and CSV export is disabled.", fontSize = 12.5.sp, color = TextMuted)
         }
     }
 }
 
 @Composable
-private fun HistoryRecordCard(result: TestResult, fallbackIndex: Int) {
+private fun HistoryRecordCard(
+    result: TestResult,
+    fallbackIndex: Int,
+    selected: Boolean,
+    onSelectedChange: (Boolean) -> Unit
+) {
     val hasGroundTruth = result.trueLocationId != null
     AppCard {
         Row(
@@ -264,23 +291,29 @@ private fun HistoryRecordCard(result: TestResult, fallbackIndex: Int) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(12.dp)
         ) {
-            Checkbox(checked = hasGroundTruth, onCheckedChange = null)
+            Checkbox(checked = selected, onCheckedChange = onSelectedChange)
             Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
                 Text(formatDateTime(result.createdAt), fontSize = 11.5.sp, color = TextMuted)
                 Text(formatPredictedLocation(result, fallbackIndex), fontWeight = FontWeight.SemiBold, color = TextStrong)
                 Text(formatDevice(result), fontSize = 12.sp, color = TextMuted)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatusPill(text = "GPS 誤差 ${formatMeters(result.gpsErrorMeters)}", color = GpsRed, background = RedTint)
-                    StatusPill(text = "Wi-Fi 誤差 ${formatMeters(result.wifiErrorMeters)}", color = GpsRed, background = RedTint)
+                    StatusPill(text = "GPS Error ${formatMeters(result.gpsErrorMeters)}", color = GpsRed, background = RedTint)
+                    StatusPill(text = "Wi-Fi Error ${formatMeters(result.wifiErrorMeters)}", color = GpsRed, background = RedTint)
                     StatusPill(text = "Confidence ${formatConfidence(result.confidence)}", color = ActionBlue, background = BlueTint)
                     StatusPill(
-                        text = if (hasGroundTruth) "已校正" else "未校正",
+                        text = if (hasGroundTruth) "Ground Truth set" else "No Ground Truth",
                         color = if (hasGroundTruth) CollectGreen else TextMuted,
                         background = if (hasGroundTruth) GreenTint else GrayTint
                     )
                 }
             }
         }
+    }
+}
+
+private fun TestResult.selectionId(fallbackIndex: Int): String {
+    return documentId.ifBlank {
+        createdAt?.let { "createdAt:$it" } ?: "row:$fallbackIndex"
     }
 }
 
@@ -293,7 +326,7 @@ private fun formatPredictedLocation(result: TestResult, fallbackIndex: Int): Str
     ).filter { it.isNotBlank() }
 
     return parts.joinToString(" / ").ifBlank {
-        result.predictedLocationId ?: result.documentId.ifBlank { "測試紀錄 #${fallbackIndex + 1}" }
+        result.predictedLocationId ?: result.documentId.ifBlank { "Test result #${fallbackIndex + 1}" }
     }
 }
 
@@ -301,23 +334,23 @@ private fun formatDevice(result: TestResult): String {
     val device = listOf(result.deviceBrand, result.deviceModel)
         .filter { it.isNotBlank() }
         .joinToString(" ")
-        .ifBlank { "未知裝置" }
-    val android = result.androidVersion.ifBlank { "未知版本" }
+        .ifBlank { "Unknown device" }
+    val android = result.androidVersion.ifBlank { "Unknown Android" }
     return "$device / Android $android / AP ${result.apCount} / K ${result.knnK}"
 }
 
 private fun formatMeters(value: Double?): String {
-    return value?.let { "${String.format(Locale.US, "%.1f", it)} m" } ?: "—"
+    return value?.let { "${String.format(Locale.US, "%.1f", it)} m" } ?: "--"
 }
 
 private fun formatConfidence(value: Double?): String {
     return value?.let {
         val percent = if (it <= 1.0) it * 100.0 else it
         "${String.format(Locale.US, "%.0f", percent)}%"
-    } ?: "—"
+    } ?: "--"
 }
 
 private fun formatDateTime(epochMillis: Long?): String {
-    if (epochMillis == null) return "無時間戳記"
+    if (epochMillis == null) return "No timestamp"
     return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.TAIWAN).format(Date(epochMillis))
 }
