@@ -41,6 +41,8 @@ fun ResultContentRedesign(
     gpsAreaName: String?,
     gpsLatitude: Double?,
     gpsLongitude: Double?,
+    groundTruthLatitude: Double?,
+    groundTruthLongitude: Double?,
     gpsAccuracyMeters: Double?,
     gpsUpdatedAt: String?,
     wifiUpdatedAt: String?,
@@ -69,6 +71,22 @@ fun ResultContentRedesign(
             isCalibrated = isCalibrated
         )
 
+        if (gpsLatitude != null && gpsLongitude != null) {
+            WebMapCard(
+                latitude = gpsLatitude,
+                longitude = gpsLongitude,
+                height = 190,
+                groundTruthLatitude = groundTruthLatitude,
+                groundTruthLongitude = groundTruthLongitude
+            )
+        } else {
+            MapPlaceholderCard(
+                title = "GPS 地圖",
+                subtitle = "沒有 GPS 座標時無法顯示地圖",
+                height = 150
+            )
+        }
+
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ErrorStatCard("GPS Error", gpsErrorMeters, GpsRed, Modifier.weight(1f))
             ErrorStatCard("Wi-Fi Error", wifiErrorMeters, GpsRed, Modifier.weight(1f))
@@ -79,6 +97,8 @@ fun ResultContentRedesign(
             predictedLocationName = predictedLocationName,
             gpsLatitude = gpsLatitude,
             gpsLongitude = gpsLongitude,
+            groundTruthLatitude = groundTruthLatitude,
+            groundTruthLongitude = groundTruthLongitude,
             gpsAccuracyMeters = gpsAccuracyMeters,
             confidencePercent = confidencePercent,
             gpsUpdatedAt = gpsUpdatedAt,
@@ -86,20 +106,6 @@ fun ResultContentRedesign(
             onCopyDetails = onCopyDetails,
             onOpenInMaps = onOpenInMaps
         )
-
-        if (gpsLatitude != null && gpsLongitude != null) {
-            WebMapCard(
-                latitude = gpsLatitude,
-                longitude = gpsLongitude,
-                height = 180
-            )
-        } else {
-            MapPlaceholderCard(
-                title = "GPS 地圖",
-                subtitle = "沒有 GPS 座標時無法顯示地圖",
-                height = 150
-            )
-        }
 
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 2.dp, top = 2.dp),
@@ -230,6 +236,8 @@ private fun DetailComparisonCard(
     predictedLocationName: String?,
     gpsLatitude: Double?,
     gpsLongitude: Double?,
+    groundTruthLatitude: Double?,
+    groundTruthLongitude: Double?,
     gpsAccuracyMeters: Double?,
     confidencePercent: Int?,
     gpsUpdatedAt: String?,
@@ -283,7 +291,8 @@ private fun DetailComparisonCard(
                 label = "緯 / 經度",
                 gps = if (gpsLatitude != null && gpsLongitude != null)
                     "${"%.6f".format(gpsLatitude)}\n${"%.6f".format(gpsLongitude)}" else "—",
-                wifi = "—"
+                wifi = if (groundTruthLatitude != null && groundTruthLongitude != null)
+                    "${"%.6f".format(groundTruthLatitude)}\n${"%.6f".format(groundTruthLongitude)}" else "—"
             )
             RowDivider(inset = 0)
             DetailRow(

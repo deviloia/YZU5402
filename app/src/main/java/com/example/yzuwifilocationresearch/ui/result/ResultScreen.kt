@@ -6,7 +6,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.example.yzuwifilocationresearch.firebase.LocationRepository
 import com.example.yzuwifilocationresearch.firebase.TestResultRepository
+import com.example.yzuwifilocationresearch.map.BuildingLookup
+import com.example.yzuwifilocationresearch.model.LocationPoint
 import com.example.yzuwifilocationresearch.model.TestResult
 import com.example.yzuwifilocationresearch.navigation.AppDestination
 import com.example.yzuwifilocationresearch.ui.components.AppScaffold
@@ -22,12 +25,18 @@ fun ResultScreen(
     onScanClick: () -> Unit,
     onHistoryClick: () -> Unit
 ) {
-    // 顯示 testResults 裡最新的一筆（依 createdAt 排序），還沒讀到之前是 null。
     var latestResult by remember { mutableStateOf<TestResult?>(null) }
+    var groundTruthLocation by remember { mutableStateOf<LocationPoint?>(null) }
 
     LaunchedEffect(Unit) {
         val results = TestResultRepository().getAllTestResults()
-        latestResult = results.maxByOrNull { it.createdAt ?: 0L }
+        val result = results.maxByOrNull { it.createdAt ?: 0L }
+        latestResult = result
+
+        val locationId = result?.trueLocationId ?: result?.predictedLocationId
+        groundTruthLocation = locationId
+            ?.takeIf { it.isNotBlank() }
+            ?.let { LocationRepository().getLocation(it) }
     }
 
     AppScaffold(
@@ -40,23 +49,31 @@ fun ResultScreen(
         onHistoryClick = onHistoryClick
     ) { modifier ->
         val result = latestResult
+        val gpsAreaName = if (result?.gpsLatitude != null && result.gpsLongitude != null) {
+            BuildingLookup.findBuildingContaining(
+                latitude = result.gpsLatitude,
+                longitude = result.gpsLongitude
+            )?.buildingName
+        } else {
+            null
+        }
+
         ResultContentRedesign(
             predictedLocationName = result?.predictedPositionName,
             predictedLocationId = result?.predictedLocationId,
-            // confidence 存的是 0.0~1.0，畫面顯示要轉成百分比整數。
             confidencePercent = result?.confidence?.let { (it * 100).roundToInt() },
             k = result?.knnK,
             apCount = result?.apCount,
-            // BuildingLookup 還沒接進來，暫時沒有「GPS 所在建築」的顯示文字。
-            gpsAreaName = null,
+            gpsAreaName = gpsAreaName,
             gpsLatitude = result?.gpsLatitude,
             gpsLongitude = result?.gpsLongitude,
+            groundTruthLatitude = groundTruthLocation?.manualLatitude,
+            groundTruthLongitude = groundTruthLocation?.manualLongitude,
             gpsAccuracyMeters = result?.gpsAccuracy,
             gpsUpdatedAt = result?.gpsTimestamp?.let(::formatTimestamp),
             wifiUpdatedAt = result?.createdAt?.let(::formatTimestamp),
             gpsErrorMeters = result?.gpsErrorMeters,
             wifiErrorMeters = result?.wifiErrorMeters,
-            // 有 trueLocationId 才代表這筆有經過人工 Ground Truth 校正。
             isCalibrated = result?.trueLocationId != null,
             apList = result?.accessPoints.orEmpty().map { ap ->
                 ApRowData(ssid = ap.ssid, bssid = ap.bssid, rssi = ap.meanRssi.roundToInt())
