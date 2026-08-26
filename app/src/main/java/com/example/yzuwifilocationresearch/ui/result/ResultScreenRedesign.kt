@@ -87,11 +87,19 @@ fun ResultContentRedesign(
             onOpenInMaps = onOpenInMaps
         )
 
-        MapPlaceholderCard(
-            title = "地圖占位",
-            subtitle = "Ground Truth / GPS / Wi-Fi 三點比較",
-            height = 150
-        )
+        if (gpsLatitude != null && gpsLongitude != null) {
+            WebMapCard(
+                latitude = gpsLatitude,
+                longitude = gpsLongitude,
+                height = 180
+            )
+        } else {
+            MapPlaceholderCard(
+                title = "GPS 地圖",
+                subtitle = "沒有 GPS 座標時無法顯示地圖",
+                height = 150
+            )
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 2.dp, top = 2.dp),

@@ -11,11 +11,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 
-/**
- * 用 WebView 載入 Google Maps 的免 API Key 嵌入網址（output=embed），
- * 效果跟網頁版的 <iframe> 嵌入地圖一樣，不需要申請 Google Maps API Key。
- * 座標為 null 時不顯示（呼叫端應該改顯示 MapPlaceholderCard）。
- */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun WebMapCard(
@@ -25,7 +20,34 @@ fun WebMapCard(
     height: Int = 220,
     zoom: Int = 18
 ) {
-    val url = "https://maps.google.com/maps?q=$latitude,$longitude&z=$zoom&output=embed"
+    val mapUrl = "https://www.google.com/maps?q=$latitude,$longitude&z=$zoom&output=embed"
+    val html = """
+        <!doctype html>
+        <html>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    html, body, iframe {
+                        width: 100%;
+                        height: 100%;
+                        margin: 0;
+                        padding: 0;
+                        border: 0;
+                        overflow: hidden;
+                    }
+                </style>
+            </head>
+            <body>
+                <iframe
+                    src="$mapUrl"
+                    width="100%"
+                    height="100%"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade">
+                </iframe>
+            </body>
+        </html>
+    """.trimIndent()
 
     AndroidView(
         modifier = modifier
@@ -35,11 +57,24 @@ fun WebMapCard(
         factory = { context ->
             WebView(context).apply {
                 settings.javaScriptEnabled = true
-                loadUrl(url)
+                settings.domStorageEnabled = true
+                settings.loadWithOverviewMode = true
+                settings.useWideViewPort = true
+                loadMapHtml(html)
             }
         },
         update = { webView ->
-            webView.loadUrl(url)
+            webView.loadMapHtml(html)
         }
+    )
+}
+
+private fun WebView.loadMapHtml(html: String) {
+    loadDataWithBaseURL(
+        "https://www.google.com",
+        html,
+        "text/html",
+        "UTF-8",
+        null
     )
 }
