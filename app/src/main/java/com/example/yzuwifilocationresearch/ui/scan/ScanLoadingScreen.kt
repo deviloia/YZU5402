@@ -49,7 +49,7 @@ import com.example.yzuwifilocationresearch.wifi.WifiStatistics
 import kotlinx.coroutines.launch
 
 // 依先前討論：測試模式抓房間級精度即可，掃描次數比採集模式（10次）少，換取速度。
-private const val TEST_SCAN_ROUNDS = 4
+private const val TEST_SCAN_ROUNDS = 10
 private const val KNN_K = 3
 
 @Composable

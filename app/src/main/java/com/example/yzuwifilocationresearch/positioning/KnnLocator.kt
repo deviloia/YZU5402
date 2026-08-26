@@ -1,18 +1,17 @@
 package com.example.yzuwifilocationresearch.positioning
 
-import com.example.yzuwifilocationresearch.model.AccessPoint
 import com.example.yzuwifilocationresearch.model.FingerprintSample
 
-/** KNN/WKNN 定位：拿測試指紋跟資料庫每一筆算距離，取最近 K 個，加權投票決定位置。 */
 object KnnLocator {
+    const val DEFAULT_K = 3
 
-    /** 一個鄰居：資料庫裡的一筆指紋樣本，加上跟測試指紋的距離。 */
     data class Neighbor(
         val sample: FingerprintSample,
-        val distance: Double
+        val distance: Double,
+        val overlapCount: Int,
+        val weight: Double
     )
 
-    /** 定位結果：最終預測的位置欄位，加上用來算 Confidence 的鄰居清單。 */
     data class LocateResult(
         val predictedLocationId: String,
         val predictedBuildingId: String,
@@ -22,51 +21,83 @@ object KnnLocator {
         val neighbors: List<Neighbor>
     )
 
-    /**
-     * testAccessPoints：使用者這次測試掃到的統計結果。
-     * fingerprintSamples：資料庫裡全部的指紋樣本（FingerprintRepository.getAllFingerprints()）。
-     * k：取最近幾個鄰居參與投票。
-     * 資料庫是空的、或沒有任何鄰居時回傳 null，不假裝有預測結果。
-     */
     fun locate(
-        testAccessPoints: List<AccessPoint>,
+        testAccessPoints: List<com.example.yzuwifilocationresearch.model.AccessPoint>,
         fingerprintSamples: List<FingerprintSample>,
-        k: Int
+        k: Int = DEFAULT_K
     ): LocateResult? {
-        // 資料庫是空的，直接沒東西可比對。
-        if (fingerprintSamples.isEmpty()) return null
+        require(k > 0) { "k must be greater than 0." }
+        if (testAccessPoints.isEmpty() || fingerprintSamples.isEmpty()) return null
 
-        // 對資料庫「每一筆」都呼叫一次 DistanceCalculator 算距離，
-        // 由近到遠排序後只留最近的 K 個，其餘丟棄。
         val neighbors = fingerprintSamples
-            .map { sample -> Neighbor(sample, DistanceCalculator.euclideanDistance(testAccessPoints, sample.accessPoints)) }
-            .sortedBy { it.distance }
+            .mapNotNull { sample ->
+                val distance = DistanceCalculator.legacyScore(
+                    current = testAccessPoints,
+                    sample = sample.accessPoints
+                ) ?: return@mapNotNull null
+
+                Neighbor(
+                    sample = sample,
+                    distance = distance.score,
+                    overlapCount = distance.overlapCount,
+                    weight = DistanceCalculator.weightForScore(distance.score)
+                )
+            }
+            .sortedWith(
+                compareBy<Neighbor> { it.distance }
+                    .thenByDescending { it.overlapCount }
+                    .thenBy { it.sample.buildingId }
+                    .thenBy { it.sample.floorId }
+                    .thenBy { it.sample.positionName }
+                    .thenBy { it.sample.subPosition }
+                    .thenBy { it.sample.locationId }
+            )
             .take(k)
 
         if (neighbors.isEmpty()) return null
 
-        // WKNN 權重：Wi = 1 / (Di + 1)，距離越近權重越高，+1 避免除以 0。
-        val weightByNeighbor = neighbors.associateWith { 1.0 / (it.distance + 1.0) }
+        val winningGroup = neighbors
+            .groupBy { neighbor ->
+                listOf(
+                    neighbor.sample.buildingId,
+                    neighbor.sample.floorId,
+                    neighbor.sample.positionName
+                ).joinToString("|")
+            }
+            .map { (_, group) -> KnnVoteGroup(group) }
+            .sortedWith(
+                compareByDescending<KnnVoteGroup> { it.totalWeight }
+                    .thenBy { it.bestDistance }
+                    .thenByDescending { it.totalOverlap }
+                    .thenBy { it.representative.sample.buildingId }
+                    .thenBy { it.representative.sample.floorId }
+                    .thenBy { it.representative.sample.positionName }
+            )
+            .firstOrNull() ?: return null
 
-        // K 個鄰居裡可能有好幾筆指向同一個 locationId（同房間存了多筆採集資料），
-        // 依 locationId 分組，把屬於同一個位置的權重加總起來一起比。
-        val weightByLocationId = neighbors
-            .groupBy { it.sample.locationId }
-            .mapValues { (_, group) -> group.sumOf { weightByNeighbor.getValue(it) } }
-
-        // 權重總和最高的 locationId 就是最終預測位置。
-        val winningLocationId = weightByLocationId.maxByOrNull { it.value }?.key ?: return null
-        // 拿隨便一筆屬於這個 locationId 的鄰居，取出它的位置欄位（同一 locationId 的位置欄位理論上一致）。
-        val winningSample = neighbors.first { it.sample.locationId == winningLocationId }.sample
-
-        return LocateResult(
-            predictedLocationId = winningLocationId,
-            predictedBuildingId = winningSample.buildingId,
-            predictedFloorId = winningSample.floorId,
-            predictedPositionName = winningSample.positionName,
-            predictedSubPosition = winningSample.subPosition,
-            // 保留完整鄰居清單（含距離），讓 ConfidenceCalculator 之後能重用同一套權重邏輯算信心值。
-            neighbors = neighbors
-        )
+        return winningGroup.representative.sample.let { sample ->
+            LocateResult(
+                predictedLocationId = sample.locationId,
+                predictedBuildingId = sample.buildingId,
+                predictedFloorId = sample.floorId,
+                predictedPositionName = sample.positionName,
+                predictedSubPosition = sample.subPosition,
+                neighbors = neighbors
+            )
+        }
     }
+}
+
+private data class KnnVoteGroup(
+    val neighbors: List<KnnLocator.Neighbor>
+) {
+    val totalWeight: Double = neighbors.sumOf { it.weight }
+    val bestDistance: Double = neighbors.minOf { it.distance }
+    val totalOverlap: Int = neighbors.sumOf { it.overlapCount }
+    val representative: KnnLocator.Neighbor = neighbors.minWith(
+        compareBy<KnnLocator.Neighbor> { it.distance }
+            .thenByDescending { it.overlapCount }
+            .thenBy { it.sample.subPosition }
+            .thenBy { it.sample.locationId }
+    )
 }

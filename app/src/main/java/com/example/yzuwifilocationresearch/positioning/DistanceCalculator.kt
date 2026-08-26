@@ -1,34 +1,51 @@
 package com.example.yzuwifilocationresearch.positioning
 
 import com.example.yzuwifilocationresearch.model.AccessPoint
-import kotlin.math.sqrt
 
-/**
- * 算兩組 WiFi 指紋（AccessPoint 清單）之間的歐氏距離。
- * 只比較兩邊都有出現的 BSSID，用 meanRssi 當每個維度的值。
- */
 object DistanceCalculator {
+    const val DEFAULT_MINIMUM_OVERLAP = 3
+    const val DEFAULT_MISSING_AP_PENALTY = 35
 
-    /** 兩邊完全沒有共同 BSSID 時回傳的距離，代表「無法比較」，排序時會被排到最後。 */
-    val NO_COMMON_AP_DISTANCE = Double.MAX_VALUE
+    data class DistanceResult(
+        val score: Double,
+        val overlapCount: Int
+    )
 
-    /** 歐氏距離：sqrt(Σ(RSSI差)^2)，只累加兩邊共同出現的 BSSID。 */
-    fun euclideanDistance(a: List<AccessPoint>, b: List<AccessPoint>): Double {
-        // 把清單轉成 Map<BSSID, AccessPoint>，之後用 BSSID 當 key 快速查值。
-        val aByBssid = a.associateBy { it.bssid }
-        val bByBssid = b.associateBy { it.bssid }
-        // 只有兩邊都掃到的 AP 才拿來比對，任一邊沒收到訊號的 AP 直接忽略。
-        val commonBssids = aByBssid.keys.intersect(bByBssid.keys)
+    /**
+     * Uses the legacy score from the previous app.
+     *
+     * Samples with too few shared BSSIDs are rejected. Missing APs are penalized
+     * so a fingerprint that matches only one strong AP does not beat a fuller
+     * room fingerprint.
+     */
+    fun legacyScore(
+        current: List<AccessPoint>,
+        sample: List<AccessPoint>,
+        minimumOverlap: Int = DEFAULT_MINIMUM_OVERLAP,
+        missingApPenalty: Int = DEFAULT_MISSING_AP_PENALTY
+    ): DistanceResult? {
+        val currentByBssid = current.associateBy { it.bssid.normalizedBssid() }
+        val sampleByBssid = sample.associateBy { it.bssid.normalizedBssid() }
+        val commonBssids = currentByBssid.keys.intersect(sampleByBssid.keys)
 
-        // 完全沒有共同 AP，代表兩邊環境差太多，直接視為「最不像」。
-        if (commonBssids.isEmpty()) return NO_COMMON_AP_DISTANCE
+        if (commonBssids.size < minimumOverlap) return null
 
-        // 每個共同 AP 算一次 (a的meanRssi - b的meanRssi)^2，全部加總。
-        val sumOfSquares = commonBssids.sumOf { bssid ->
-            val diff = aByBssid.getValue(bssid).meanRssi - bByBssid.getValue(bssid).meanRssi
-            diff * diff
+        val missingPenaltyScore = (missingApPenalty * missingApPenalty).toDouble()
+        val score = (currentByBssid.keys + sampleByBssid.keys).sumOf { bssid ->
+            val currentAp = currentByBssid[bssid]
+            val sampleAp = sampleByBssid[bssid]
+            if (currentAp == null || sampleAp == null) {
+                missingPenaltyScore
+            } else {
+                val diff = currentAp.meanRssi - sampleAp.meanRssi
+                diff * diff
+            }
         }
-        // 開根號還原成距離的單位。
-        return sqrt(sumOfSquares)
+
+        return DistanceResult(score = score, overlapCount = commonBssids.size)
     }
+
+    fun weightForScore(score: Double): Double = 1.0 / (score + 1.0)
+
+    private fun String.normalizedBssid(): String = trim().lowercase()
 }
