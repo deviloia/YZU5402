@@ -6,9 +6,13 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import kotlinx.coroutines.suspendCancellableCoroutine
+import android.os.Looper
 
 data class GpsReading(
     val latitude: Double,
@@ -46,6 +50,35 @@ class GpsLocationManager(context: Context) {
                 .addOnFailureListener {
                     continuation.resume(null) { _, _, _ -> }
                 }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun startLocationUpdates(onLocation: (GpsReading) -> Unit): () -> Unit {
+        if (!hasPermission) return {}
+
+        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1_000L)
+            .setMinUpdateIntervalMillis(500L)
+            .setWaitForAccurateLocation(false)
+            .build()
+        val callback = object : LocationCallback() {
+            override fun onLocationResult(result: LocationResult) {
+                result.lastLocation?.let { location ->
+                    onLocation(
+                        GpsReading(
+                            latitude = location.latitude,
+                            longitude = location.longitude,
+                            accuracy = location.accuracy,
+                            timestamp = location.time
+                        )
+                    )
+                }
+            }
+        }
+
+        fusedLocationClient.requestLocationUpdates(request, callback, Looper.getMainLooper())
+        return {
+            fusedLocationClient.removeLocationUpdates(callback)
         }
     }
 }
