@@ -51,7 +51,7 @@ import com.example.yzuwifilocationresearch.wifi.WifiStatistics
 import kotlinx.coroutines.launch
 
 private const val TEST_SCAN_ROUNDS = 5
-private const val KNN_K = 3
+private const val KNN_K = 7
 
 @Composable
 fun ScanLoadingScreen(

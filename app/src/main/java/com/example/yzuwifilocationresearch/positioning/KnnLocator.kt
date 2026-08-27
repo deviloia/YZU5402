@@ -3,7 +3,7 @@ package com.example.yzuwifilocationresearch.positioning
 import com.example.yzuwifilocationresearch.model.FingerprintSample
 
 object KnnLocator {
-    const val DEFAULT_K = 3
+    const val DEFAULT_K = 7
 
     data class Neighbor(
         val sample: FingerprintSample,
