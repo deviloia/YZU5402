@@ -11,8 +11,8 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import kotlinx.coroutines.suspendCancellableCoroutine
 import android.os.Looper
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 data class GpsReading(
     val latitude: Double,
@@ -21,18 +21,19 @@ data class GpsReading(
     val timestamp: Long
 )
 
-class GpsLocationManager(context: Context) {
+class GpsLocationManager(private val context: Context) {
 
     private val fusedLocationClient: FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(context)
 
-    private val hasPermission: Boolean =
-        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+    private fun hasLocationPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
                 PackageManager.PERMISSION_GRANTED
+    }
 
     @SuppressLint("MissingPermission")
     suspend fun getCurrentLocation(): GpsReading? {
-        if (!hasPermission) return null
+        if (!hasLocationPermission()) return null
 
         return suspendCancellableCoroutine { continuation ->
             fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
@@ -55,7 +56,7 @@ class GpsLocationManager(context: Context) {
 
     @SuppressLint("MissingPermission")
     fun startLocationUpdates(onLocation: (GpsReading) -> Unit): () -> Unit {
-        if (!hasPermission) return {}
+        if (!hasLocationPermission()) return {}
 
         val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1_000L)
             .setMinUpdateIntervalMillis(500L)
