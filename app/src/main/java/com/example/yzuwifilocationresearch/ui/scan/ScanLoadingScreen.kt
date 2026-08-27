@@ -48,6 +48,8 @@ import com.example.yzuwifilocationresearch.ui.components.WebMapCard
 import com.example.yzuwifilocationresearch.wifi.WifiScanProcessor
 import com.example.yzuwifilocationresearch.wifi.WifiScanner
 import com.example.yzuwifilocationresearch.wifi.WifiStatistics
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 private const val TEST_SCAN_ROUNDS = 5
@@ -73,25 +75,30 @@ fun ScanLoadingScreen(
     var latestGpsReading by remember { mutableStateOf<GpsReading?>(null) }
     var hasLocationPermission by remember { mutableStateOf(false) }
 
+    fun updateGps(reading: GpsReading?) {
+        if (reading == null) return
+        latestGpsReading = reading
+        currentLatitude = reading.latitude
+        currentLongitude = reading.longitude
+    }
+
     fun runTestFlow() {
         coroutineScope.launch {
             stepText = "取得 GPS 位置..."
             val firstGpsReading = gpsLocationManager.getCurrentLocation()
-            if (firstGpsReading != null) {
-                latestGpsReading = firstGpsReading
-                currentLatitude = firstGpsReading.latitude
-                currentLongitude = firstGpsReading.longitude
-            }
+            updateGps(firstGpsReading)
 
             val scanner = WifiScanner(context)
             val rounds = mutableListOf<List<WifiScanResult>>()
             repeat(TEST_SCAN_ROUNDS) { index ->
                 stepText = "Wi-Fi 掃描中... ${index + 1}/$TEST_SCAN_ROUNDS"
+                updateGps(gpsLocationManager.getCurrentLocation())
                 rounds += scanner.scanOnce(
                     onThrottled = {
                         stepText = "Wi-Fi 掃描節流中，等待第 ${index + 1} 次掃描..."
                     }
                 )
+                updateGps(gpsLocationManager.getCurrentLocation())
             }
 
             stepText = "計算 Wi-Fi 指紋定位..."
@@ -104,6 +111,7 @@ fun ScanLoadingScreen(
             }
 
             stepText = "儲存定位測試結果..."
+            updateGps(gpsLocationManager.getCurrentLocation())
             val resultGpsReading = latestGpsReading ?: firstGpsReading
             val testResult = TestResult(
                 trueLocationId = null,
@@ -148,13 +156,18 @@ fun ScanLoadingScreen(
         if (!hasLocationPermission) {
             onDispose {}
         } else {
-            val stopUpdates = gpsLocationManager.startLocationUpdates { reading ->
-                latestGpsReading = reading
-                currentLatitude = reading.latitude
-                currentLongitude = reading.longitude
-            }
+            val stopUpdates = gpsLocationManager.startLocationUpdates(::updateGps)
             onDispose {
                 stopUpdates()
+            }
+        }
+    }
+
+    LaunchedEffect(hasLocationPermission) {
+        if (hasLocationPermission) {
+            while (isActive) {
+                updateGps(gpsLocationManager.getCurrentLocation())
+                delay(1_000L)
             }
         }
     }
@@ -199,6 +212,15 @@ fun ScanLoadingScreen(
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("目前狀態", fontWeight = FontWeight.SemiBold, color = TextStrong)
                         Text(stepText, fontSize = 13.sp, color = TextMuted)
+                        val latitude = currentLatitude
+                        val longitude = currentLongitude
+                        if (latitude != null && longitude != null) {
+                            Text(
+                                "GPS：${"%.6f".format(latitude)}, ${"%.6f".format(longitude)}",
+                                fontSize = 12.sp,
+                                color = TextMuted
+                            )
+                        }
                     }
                 }
             }
