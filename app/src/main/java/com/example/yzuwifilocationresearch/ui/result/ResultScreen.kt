@@ -53,7 +53,7 @@ fun ResultScreen(
             BuildingLookup.findBuildingContaining(
                 latitude = result.gpsLatitude,
                 longitude = result.gpsLongitude
-            )?.buildingName
+            )?.buildingName ?: "人未在五館內"
         } else {
             null
         }
