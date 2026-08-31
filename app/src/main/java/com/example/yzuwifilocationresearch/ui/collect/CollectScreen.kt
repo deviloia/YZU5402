@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.yzuwifilocationresearch.device.DeviceInfoProvider
 import com.example.yzuwifilocationresearch.firebase.FingerprintRepository
+import com.example.yzuwifilocationresearch.firebase.ScanRoundExperimentRepository
 import com.example.yzuwifilocationresearch.gps.GpsLocationManager
 import com.example.yzuwifilocationresearch.gps.GpsReading
 import com.example.yzuwifilocationresearch.model.FingerprintSample
@@ -88,6 +89,9 @@ fun CollectScreen(
     var defaultNoteCleared by remember { mutableStateOf(false) }
 
     val collectScanRounds = 10
+    val experimentScanRounds = 30
+    var experimentProgress by remember { mutableStateOf<String?>(null) }
+    var experimentDone by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val deviceInfo = remember { DeviceInfoProvider.getDeviceInfo() }
@@ -172,6 +176,38 @@ fun CollectScreen(
             )
             FingerprintRepository().addFingerprint(sample)
             collected = true
+        }
+    }
+
+    fun runScanRoundExperiment() {
+        if (!validateForm()) return
+
+        val currentLocationId = buildLocationId(
+            buildingId = buildingId.trim(),
+            floorId = floorId.trim(),
+            positionName = positionName.trim(),
+            subPosition = areaType.trim()
+        )
+
+        coroutineScope.launch {
+            experimentDone = false
+            val scanner = WifiScanner(context)
+            val rounds = mutableListOf<List<WifiScanResult>>()
+            repeat(experimentScanRounds) { index ->
+                experimentProgress = "實驗掃描中… ${index + 1}/$experimentScanRounds"
+                rounds += scanner.scanOnce(
+                    onThrottled = { experimentProgress = "系統限制掃描頻率，等待中…（第${index + 1}輪）" }
+                )
+            }
+            experimentProgress = null
+
+            ScanRoundExperimentRepository().addExperiment(
+                locationId = currentLocationId,
+                deviceBrand = deviceInfo.deviceBrand,
+                deviceModel = deviceInfo.deviceModel,
+                rounds = rounds
+            )
+            experimentDone = true
         }
     }
 
@@ -353,6 +389,34 @@ fun CollectScreen(
                     AppCard {
                         Row(Modifier.padding(14.dp)) {
                             StatusPill(text = "已寫入 Firestore（fingerprintSamples）。", color = CollectGreen, background = GreenTint)
+                        }
+                    }
+                }
+            }
+
+            item { SectionLabel("實驗：掃描輪數N分析") }
+            item {
+                AppCard {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "在目前表單標記的位置連續掃描30輪，保留每輪原始RSSI值，" +
+                                "寫入 scanRoundExperiments 供離線分析N=1~10時的估計誤差。" +
+                                "不影響正式的 fingerprintSamples 資料。",
+                            fontSize = 12.5.sp,
+                            color = TextMuted
+                        )
+                        if (experimentProgress != null) {
+                            StatusPill(text = experimentProgress!!, color = ActionBlue, background = GreenTint)
+                        }
+                        OutlinedButton(
+                            onClick = { runScanRoundExperiment() },
+                            enabled = experimentProgress == null,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(if (experimentProgress != null) "實驗掃描中..." else "開始實驗掃描（30輪）")
+                        }
+                        if (experimentDone) {
+                            StatusPill(text = "已寫入 Firestore（scanRoundExperiments）。", color = CollectGreen, background = GreenTint)
                         }
                     }
                 }
