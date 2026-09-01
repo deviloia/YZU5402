@@ -34,7 +34,7 @@ class WifiScanner(context: Context) {
      */
     @SuppressLint("MissingPermission")
     suspend fun scanOnce(
-        maxWaitMillis: Long = 40_000L,
+        maxWaitMillis: Long = 90_000L,
         retryDelayMillis: Long = 5_000L,
         onThrottled: (() -> Unit)? = null
     ): List<WifiScanResult> {
